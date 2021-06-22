@@ -1,6 +1,8 @@
 .idea/
 *.ims
 *.iml
+.gradle/
+jimfs/build/
 
 .classpath
 .project

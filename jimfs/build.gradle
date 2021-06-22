@@ -1,0 +1,91 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'com.github.johnrengelman.shadow' version '7.0.0'
+}
+
+repositories {
+    mavenCentral()
+}
+
+def ENV = System.getenv()
+
+group = 'net.fabricmc'
+version = '1.0.0' + (ENV.GITHUB_ACTIONS ? "" : "+local")
+java.sourceCompatibility = JavaVersion.VERSION_1_8
+
+dependencies {
+    implementation ('com.google.guava:guava:30.1.1-android') {
+        transitive = false
+    }
+    implementation ('com.google.guava:failureaccess:1.0.1') {
+        transitive = false
+    }
+
+    compileOnly 'com.ibm.icu:icu4j:69.1'
+    compileOnly 'com.google.auto.service:auto-service-annotations:1.0'
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+    compileOnly 'org.checkerframework:checker-compat-qual:2.5.5'
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'com.google.guava:guava-testlib:30.1.1-android'
+    testImplementation 'com.google.truth:truth:1.1.3'
+}
+
+jar {
+    archiveClassifier = "thin"
+}
+
+shadowJar {
+    configurations = [project.configurations.runtimeClasspath]
+    archiveClassifier = ''
+    minimize()
+    from sourceSets.main.output
+
+    relocate ('com.google.common', 'com.google.common.jimfs.include.common') {
+        exclude 'com.google.common.jimfs.*'
+    }
+}
+build.dependsOn shadowJar
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = "UTF-8"
+
+    if (JavaVersion.current().isJava9Compatible()) {
+        it.options.release = 8
+    }
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
+javadoc {
+    failOnError false
+}
+
+test {
+    enabled = false
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+
+    // select the repositories you want to publish to
+    repositories {
+        if (ENV.MAVEN_URL) {
+            maven {
+                url ENV.MAVEN_URL
+                credentials {
+                    username ENV.MAVEN_USERNAME
+                    password ENV.MAVEN_PASSWORD
+                }
+            }
+        }
+    }
+}
